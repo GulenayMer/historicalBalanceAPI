@@ -12,35 +12,44 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const API_KEY = process.env.API_KEY ;
 const API_BASE_URL = process.env.API_BASE_URL;
 
+let initialBalance = 0;
+
+/* 1) Current date is 30-06-22 and transactions total on that day is -32
+	that means total balance was 132 on 29-06-22
+	2) Based on this I need to calculate current balances for the each day 
+	from currentDate till toDate, from there to fromDate.
+ */
+
 /* --- Balances Endpoint ---- */
 app.get("/balances", async (req, res) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/balances`, {
-      headers: {
-		'x-api-key': `${API_KEY}`,
-      },
-    });
-	const balances = response.data;
-    return res.json(balances);
-  } catch (error) {
-    return res.status(500).json({ error: "Server Error: Failed to fetch balances" });
-  }
+	try {
+		const response = await axios.get(`${API_BASE_URL}/balances`, {
+			headers: {
+			'x-api-key': `${API_KEY}`,
+		},
+		});
+		const balances = response.data;
+		initialBalance += balances.amount / 100;
+		return res.json(balances);
+	} catch (error) {
+		return res.status(500).json({ error: "Server Error: Failed to fetch balances" });
+	}
 });
 
 /* ------- Transactions Endpoint ------ */
 app.get("/transactions", async (req, res) => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/transactions`, {
-        headers: {
-			'x-api-key': `${API_KEY}`,
+	try {
+		const response = await axios.get(`${API_BASE_URL}/transactions`, {
+			headers: {
+				'x-api-key': `${API_KEY}`,
 		},
-    });
-	const transactions = response.data;
-    return res.json(transactions);
-  } catch (error) {
-    return res.status(500).json({ error: "Server Error: Failed to fetch transactions"});
-  }
-});
+	});
+		const transactions = response.data;
+		return res.json(transactions);
+	} catch (error) {
+		return res.status(500).json({ error: "Server Error: Failed to fetch transactions"});
+	}
+}); 
 
 
 /* ------- Historical Balances Endpoint ------ */
@@ -56,20 +65,17 @@ app.get("/historical-balances", async (req, res) => {
 				'x-api-key': `${API_KEY}`,
 			},
 		});
-		//console.log("🚀 ~ file: app.ts:59 ~ app.get ~ transactionsResponse:", transactionsResponse.data)
 		const allTransactions: Transaction[] = transactionsResponse.data.transactions;
 
 		const filteredTransactions: Transaction[] = allTransactions.filter( (item: Transaction) => {
 			const itemDate: Date = new Date(item.date);
-			//console.log("🚀 ~ file: app.ts:67 ~ itemDate:", itemDate);
 			const todate2: Date = new Date(toDate);
-			todate2.setHours(23, 59, 59, 999); // I am setting the time to (23:59:59), otherwise it excludes 'toDate'
+			todate2.setHours(23, 59, 59, 999); 
 			return itemDate >= new Date(fromDate) && itemDate <= todate2;
 		});
-		//console.log("🚀 ~ file: app.ts:69 ~ app.get ~ filteredTransactions:", filteredTransactions)
+
 
 		const historicalBalances: Balance[] = getHistoricalBalance(fromDate, toDate, filteredTransactions);
-		//console.log("🚀 ~ file: app.ts:75 ~ app.get ~ historicalBalances:", historicalBalances)
 
 		if (sortDesc === 'desc') {
 			const desc = historicalBalances.sort((a: Balance, b: Balance) => {
@@ -87,4 +93,50 @@ app.get("/historical-balances", async (req, res) => {
 });
 
 
+/* interface DailyBalances {
+	[date: string]: number;
+}
+  const dailyBalances: DailyBalances = {} */
+
+/* --- Balances Endpoint ---- */
+/* app.get("/balances", async (req, res) => {
+try {
+    const response = await axios.get(`${API_BASE_URL}/balances`, {
+    headers: {
+		'x-api-key': `${API_KEY}`,
+    },
+    });
+	
+	const balances = response.data;
+	initialBalance += balances.amount / 100;
+	dailyBalances[balances.date] = initialBalance;
+    return res.json(dailyBalances);
+} catch (error) {
+    return res.status(500).json({ error: "Server Error: Failed to fetch balances" });
+}
+}); */
+
+/* app.get("/transactions", async (req, res) => {
+	try {
+		const response = await axios.get(`${API_BASE_URL}/transactions`, {
+		headers: {
+			'x-api-key': `${API_KEY}`,
+		},
+	});
+	const transactions: Transaction[] = response.data;
+	console.log(response.data);
+	
+	transactions.forEach(transaction => {
+		const transactionDate = transaction.date;
+		const transactionAmount = transaction.amount / 100;
+		initialBalance += transactionAmount;
+		
+		dailyBalances[transactionDate] = initialBalance;
+	});
+
+	return res.json(dailyBalances);
+	} catch (error) {
+	return res.status(500).json({ error: "Server Error: Failed to fetch transactions" });
+	}
+  }); */
 export default app;
